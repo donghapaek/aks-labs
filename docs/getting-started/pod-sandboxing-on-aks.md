@@ -6,13 +6,29 @@ sidebar_label: "Pod Sandboxing"
 
 To help secure and protect your container workloads from untrusted or potentially malicious code, AKS now includes a mechanism called Pod Sandboxing (preview). Pod Sandboxing provides an isolation boundary between the container application and the shared kernel and compute resources of the container host such as CPU, memory, and networking. Pod Sandboxing complements other security measures or data protection controls with your overall architecture to help you meet regulatory, industry, or governance compliance requirements for securing sensitive information.
 
+Traditionally, Kubernetes deployments rely on namespace isolations Namespaces don't protect against kernel-level attacks, because:
+
+- All containers share the same kernel.
+- vulnerability in the kernel (e.g., dirty COW, runc escape, Spectre/Meltdown side channels) can allow cross-container attacks.
+- If a container escapes its namespace, it could compromise other containers or the host.
+
+This is especially risky in multi-tenant clusters, where:
+
+- One tenant’s workload might be malicious or compromised.
+- Traditional namespace isolation won't stop a kernel-level exploit from jumping across tenants.
+
+Kata Containers are ideal when you need strong tenant isolation—for example:
+
+- SaaS platforms with untrusted workloads
+- Regulated environments (e.g., finance, healthcare)
+- Running low-trust 3rd-party code
+- Clusters with shared responsibility models
+
 ## Objectives
 
 This session is designed to help you understand how to isolate workloads in multi-tenant environments using lightweight virtual machines, and how to get hands-on with it in your own clusters.
 
 Pod Sandboxing on AKS is currently in Public Preview.
-
-## Objectives
 
 As you progress through the workshop, you will learn how to:
 
@@ -24,9 +40,10 @@ As you progress through the workshop, you will learn how to:
 
 ## Prerequisites
 
-Please familiarize yourself with the basic consepts from the Microsft learn page.
+Please familiarize yourself with the basic concepts from the Microsft learn page.
 
 [Pod Sandboxing on AKS](https://learn.microsoft.com/en-us/azure/aks/use-pod-sandboxing) explains basic concepts of the feature and how to enable the preview flags for AKS.
+[AKS fundamentals](https://azure-samples.github.io/aks-labs/docs/getting-started/k8s-aks-fundamentals) for key concepts on AKS
 
 ### Setting up workplace
 
@@ -42,13 +59,32 @@ az extension add --name aks-preview
 
 In order to demonstrate the difference between Kata and non Kata pods, we will deploy multiple pods, both with Pod Sandboxing enabled and disabled.
 
-### Demonstrating compute/network isolation
+## Demonstrating compute/network isolation
 
-### Resource Isolations in Kata Pods
+### Compute isolations
+
+Each sandboxed pod runs inside its own lightweight virtual machine (UVM), which includes its own kernel, memory, and network stack. This means that even though multiple pods may share the same subnet, their network interfaces are isolated at the virtualization layer. This prevents direct access between pods unless explicitly configured.
+
+This makes Pod Sandboxing on AKS ideal for multi-tenant scenarios, where you have untrusted workload from tenants running on the same node.
+
+### Network isolations
+
+Some of the key characteristics in Pod Sandboxing for networking are:
+
+- Has its own virtual NIC (network interface card).
+- Uses a separate network namespace from the host and other pods.
+- Can have dedicated firewall rules, routing, and DNS settings.
+- Isolated from other pods while running on same subnet.
+
+Traffic between sandboxed pods on the same node is routed through virtual NICs and virtual switches inside the hypervisor layer. This provides strong isolation even though the subnet is shared.
 
 ### What you can do and can't do 
 
-## Takeaways
+can do multi container pods
+
+### Commonly asked questions
+
+### Takeaways
 
 ### Confidential Pods on AKS
 
