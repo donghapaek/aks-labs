@@ -24,21 +24,22 @@ Kata Containers are ideal when you need strong tenant isolation—for example:
 - Running low-trust 3rd-party code
 - Clusters with shared responsibility models
 
-## Objectives
+Pod Sandboxing complements other security measures or data protection controls with your overall architecture to help you meet regulatory, industry, or governance compliance requirements for securing sensitive information. Pod Sandboxing could allow you to run untrusted or potentially malicious code securely, isolate workloads of different tenants from one another on the same cluster, or allow you to securely mix and match trusted and untrusted workloads on the same cluster. 
 
-This session is designed to help you understand how to isolate workloads in multi-tenant environments using lightweight virtual machines, and how to get hands-on with it in your own clusters.
+# Objectives
 
 Pod Sandboxing on AKS is currently in Public Preview.
 
 As you progress through the workshop, you will learn how to:
 
-- Setting up workplace environment
-- Spinning up pods (Kata and non-Kata)
-- Showing the differences between the pods 
-- Networking between Kata pods and non-Kata pods
-- Setting resource constraints on Kata pods
+- Set up a workplace environment
+- Deploying pods (Kata and non-Kata)
+- Explore resource isolation between Kata pods and non-Kata pods
+- Set resource constraints on Kata pods
 
-## Prerequisites
+# Prerequisites
+
+Before starting this lab, please ensure your lab environment is set up properly. Follow the guide [here](https://azure-samples.github.io/aks-labs/docs/getting-started/setting-up-lab-environment/).
 
 Please familiarize yourself with the basic concepts from the Microsft learn page.
 
@@ -48,10 +49,10 @@ Please familiarize yourself with the basic concepts from the Microsft learn page
 ### Setting up workplace
 
 ```bash
-az login
+kubectl get pods
 ```
 
-Run the following command to register preview features.
+then delete the pod(s) in question
 
 ```bash
 az extension add --name aks-preview
