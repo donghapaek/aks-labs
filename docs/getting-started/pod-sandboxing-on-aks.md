@@ -26,8 +26,6 @@ Kata Containers are ideal when you need strong tenant isolation—for example:
 
 ## Objectives
 
-# Objectives
-
 Pod Sandboxing on AKS is currently in Public Preview.
 This session is designed to help you understand how to isolate workloads using the lightweight Kata virtual machines introduced by Pod Sandboxing. The goal is to allow you to get hands-on with the feature and different use cases in a clusters.
 
@@ -38,13 +36,13 @@ As you progress through the workshop, you will learn how to:
 - Explore resource isolation between Kata pods and non-Kata pods
 - Set resource constraints on Kata pods
 
-# Prerequisites
+## Prerequisites
 
 Before starting this lab, please ensure your lab environment is set up properly. Follow the guide [here](https://azure-samples.github.io/aks-labs/docs/getting-started/setting-up-lab-environment/).
 
 Please also familiarize yourself with the basic concepts laid out, and ensure you have the prerequisities laid out in the Microsoft Learn page for [Pod Sandboxing on AKS](https://learn.microsoft.com/en-us/azure/aks/use-pod-sandboxing).
 
-# Setting up Pod Sandboxing on your AKS Node Pool(s)
+## Setting up Pod Sandboxing on your AKS Node Pool(s)
 
 You have can either spin up a new cluster or add nodepools to an existing cluster to experiment with the Pod Sandboxing feature.
 
@@ -81,8 +79,6 @@ The prerequisites above hold true if you intend to deploy Pod Sandboxing to an e
 
 In order to demonstrate the difference between Kata and non Kata pods, we will deploy multiple pods, both with Pod Sandboxing enabled and disabled.
 
-## Demonstrating compute/network isolation
-
 This example adds a node pool to *myAKSCluster* with one node pool, *newnodepool* in *myResourceGroup*:
 
 ```azurecli
@@ -94,6 +90,73 @@ az aks nodepool add \
     --workload-runtime KataMshvVmIsolation \
     --node-vm-size Standard_D4s_v3
 ```
+
+
+# Demonstrating compute/network isolation
+
+## Deploying your pods
+
+In order to demonstrate the usefullness of resource isolation, we will deploy applications to the same nodepool, only enabling Pod Sandboxing on subset of applications.
+
+For the purposes of the demo, we will borrow one of the sample Conto projects that we can deploy on AKS [Contoso Ship Manager](https://github.com/Azure-Samples/aks-contoso-ships-sample)
+
+We will introduce number of common vulnerabilities to the application and see if Pod Sandboxing can provide additional protection. Here are some of the examples:
+
+:::info
+We will provide the patche that you can apply to the deployment. Paragraph below is just for descriptions
+:::
+
+- Add a Privileged Capability
+Modify the container spec to include elevated privileges:
+```
+securityContext:
+  privileged: true
+
+```
+This simulates a misconfigured container that could access host resources—something Kata Containers would block.
+- Mount Host Paths
+Mont a sensitive host directory:
+```
+volumeMounts:
+- name: host-root
+  mountPath: /host
+volumes:
+- name: host-root
+  hostPath:
+    path: /
+
+```
+This allows the container to read host files—again, blocked in sandboxed pods.
+- Expose Docker Socket
+Mount the Docker socket to simulate container escape:
+```
+- mountPath: /var/run/docker.sock
+  name: docker-socket
+
+```
+Then run a script inside the container to list or control other containers.
+- Inject a Reverse Shell
+Add a vulnerable endpoint in the backend API that executes shell commands:
+```
+[HttpPost("exec")]
+public IActionResult Exec([FromBody] string cmd)
+{
+    var output = System.Diagnostics.Process.Start("bash", $"-c \"{cmd}\"");
+    return Ok(output);
+}
+```
+This simulates remote code execution (RCE) from a compromised container.
+
+
+Once the vulnerabilities are in place:
+
+- Deploy the app to a regular AKS node pool and show how the breakout works.
+- Then redeploy using runtimeClassName: kata-mshv-vm-isolation and show how:
+- Host mounts fail
+- Privileged mode is blocked
+- Docker socket is inaccessible
+- RCE is contained within the UVM
+
 
 ### Compute isolations
 
@@ -111,19 +174,6 @@ Some of the key characteristics in Pod Sandboxing for networking are:
 - Isolated from other pods while running on same subnet.
 
 Traffic between sandboxed pods on the same node is routed through virtual NICs and virtual switches inside the hypervisor layer. This provides strong isolation even though the subnet is shared.
-
-
-# Deploying your pods
-
-<!--  Going over how to deploy Kata and non-Kata pods. -->
-
-## Exploring Kata Pods
-
-<!-- Showcase isolation of Kata pods -->
-
-# Resource Isolations in Kata Pods
-
-<!-- Set up resource limits on Kata pods, showcase a Kata pod using those resources -->
 
 ## Exploring compute/network isolation for Kata pods
 
