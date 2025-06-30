@@ -37,7 +37,7 @@ As you progress through the workshop, you will learn how to:
 - Explore resource isolation between Kata pods and non-Kata pods
 - Set resource constraints on Kata pods
 
-# Prerequisites
+## Prerequisites
 
 Before starting this lab, please ensure your lab environment is set up properly. Follow the guide [here](https://azure-samples.github.io/aks-labs/docs/getting-started/setting-up-lab-environment/).
 
