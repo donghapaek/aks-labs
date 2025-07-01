@@ -100,10 +100,34 @@ In order to demonstrate the usefullness of resource isolation, we will deploy ap
 
 For the purposes of the demo, we will borrow one of the sample Conto projects that we can deploy on AKS [Contoso Ship Manager](https://github.com/Azure-Samples/aks-contoso-ships-sample)
 
+<!--
+I think there is already image on ACR
+```azurecli
+git clone https://github.com/Azure-Samples/aks-contoso-ships-sample.git
+cd contoso-ships
+
+```
+-->
+```azurecli
+kubectl create deployment contoso-air \
+--image=mcr.microsoft.com/mslearn/samples/contoso-ship-manager \
+--port=3000 \
+--dry-run=client \
+--output yaml > manifests/contoso-air-deployment.yaml
+```
+
+Now we deploy resources with kubectl
+```azurecli
+kubectl apply -f manifests/contoso-air-deployment.yaml
+```
+
+
+## Introducing Common Vulnerabilities
+
 We will introduce number of common vulnerabilities to the application and see if Pod Sandboxing can provide additional protection. Here are some of the examples:
 
 :::info
-We will provide the patche that you can apply to the deployment. Paragraph below is just for descriptions
+We will provide the patch that you can apply to the deployment. Paragraph below is just for descriptions
 :::
 
 - Add a Privileged Capability
@@ -148,14 +172,14 @@ public IActionResult Exec([FromBody] string cmd)
 This simulates remote code execution (RCE) from a compromised container.
 
 
-Once the vulnerabilities are in place:
+Once the vulnerabilities are in place, we will now demonstrate:
 
-- Deploy the app to a regular AKS node pool and show how the breakout works.
-- Then redeploy using runtimeClassName: kata-mshv-vm-isolation and show how:
 - Host mounts fail
 - Privileged mode is blocked
 - Docker socket is inaccessible
 - RCE is contained within the UVM
+
+thus protecting the workload and contain vulnerabilities to individual pod level.
 
 
 ### Compute isolations
@@ -186,6 +210,8 @@ Traffic between sandboxed pods on the same node is routed through virtual NICs a
 <!-- Note on performance limitations -->
 <!-- Note on privileged pods, but capabailities should still work (showcase this). This should get fixed come GA. -->
 <!-- Note on peripheral devices -->
+<!-- Note on persistent storage limitations-->
+
 
 # Summary
 
@@ -221,8 +247,6 @@ then delete the pod(s) in question
 ```bash
 kubectl delete pod <pod_name>
 ```
-
-can do multi container pods
 
 ### Commonly asked questions
 
