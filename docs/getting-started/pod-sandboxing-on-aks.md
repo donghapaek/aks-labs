@@ -62,13 +62,14 @@ In order to demonstrate the difference between Kata and non Kata pods, we will d
 
 ## Demonstrating compute/network isolation
 
-### Compute isolations
+### Kernel
 
-Each sandboxed pod runs inside its own lightweight virtual machine (UVM), which includes its own kernel, memory, and network stack. This means that even though multiple pods may share the same subnet, their network interfaces are isolated at the virtualization layer. This prevents direct access between pods unless explicitly configured.
+Each Kata pod runs inside it's own lightweight VM, each with their own dedicated guest kernel. This ensures that:
 
-This makes Pod Sandboxing on AKS ideal for multi-tenant scenarios, where you have untrusted workload from tenants running on the same node.
+- Kernel exploits in one pod do not effect another pod nor the host.
+- Stronger isolation from other pods.
 
-### Network isolations
+### Networking
 
 Some of the key characteristics in Pod Sandboxing for networking are:
 
