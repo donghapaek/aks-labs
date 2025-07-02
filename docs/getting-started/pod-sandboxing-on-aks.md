@@ -98,7 +98,7 @@ az aks nodepool add \
 
 In order to demonstrate the usefullness of resource isolation, we will deploy applications to the same nodepool, only enabling Pod Sandboxing on subset of applications.
 
-For the purposes of the demo, we will borrow one of the sample Conto projects that we can deploy on AKS [Contoso Ship Manager](https://github.com/Azure-Samples/aks-contoso-ships-sample)
+For the purposes of the demo, we will deploy a sample Contoso projects on AKS: [Contoso Ship Manager](https://github.com/Azure-Samples/aks-contoso-ships-sample).
 
 <!--
 I think there is already image on ACR
@@ -121,7 +121,9 @@ Now we deploy resources with kubectl
 kubectl apply -f manifests/contoso-air-deployment.yaml
 ```
 
-To deploy the same Contoso Ship Manager application with Pod Sandboxing enabled, we need to modify the deployment to include the `runtimeClassName`. First, let's create a sandboxed version:
+### Deploying sandboxed pods
+
+To deploy the same Contoso Ship Manager application with Pod Sandboxing enabled, we need to modify the deployment to include the `runtimeClassName`. First, let's create a sandboxed version of our deployment YAML:
 
 ```azurecli
 kubectl create deployment contoso-air-sandboxed \
@@ -131,7 +133,7 @@ kubectl create deployment contoso-air-sandboxed \
 --output yaml > manifests/contoso-air-sandboxed-deployment.yaml
 ```
 
-Now edit the generated YAML file to add the Pod Sandboxing runtime class. The key addition is the `runtimeClassName: kata-mshv-vm-isolation` in the pod template spec:
+Now edit the generated YAML file to add the Pod Sandboxing runtime class. The key addition that enables Pod Sandboxing is the `runtimeClassName: kata-mshv-vm-isolation` in the pod template spec:
 
 ```yaml
 apiVersion: apps/v1
@@ -165,11 +167,13 @@ spec:
             cpu: "500m"
 ```
 
-Deploy the sandboxed version:
+We can then go ahead and deploy our sandboxed pod:
 
 ```azurecli
 kubectl apply -f manifests/contoso-air-sandboxed-deployment.yaml
 ```
+
+### Verifying your pods
 
 To verify both deployments are running, you can check the pods:
 
@@ -178,7 +182,15 @@ kubectl get pods -l app=contoso-air
 kubectl get pods -l app=contoso-air-sandboxed
 ```
 
-You can also verify that the sandboxed pod is indeed using Kata containers by checking the runtime:
+You can also verify whether a pod is running Kata containers by checking the runtime class of a pod:
+
+Compare your normal pod
+
+```bash
+kubectl describe pod <normal-pod-name> | grep "Runtime Class"
+```
+
+versus that of your Kata pod
 
 ```bash
 kubectl describe pod <sandboxed-pod-name> | grep "Runtime Class"
@@ -186,22 +198,24 @@ kubectl describe pod <sandboxed-pod-name> | grep "Runtime Class"
 
 ## Introducing Common Vulnerabilities
 
-We will introduce number of common vulnerabilities to the application and see if Pod Sandboxing can provide additional protection. Here are some of the examples:
+We will introduce some common vulnerabilities to our application and see how they compare between a normal pod and one that is sandboxed:
 
 :::info
 We will provide the patch that you can apply to the deployment. Paragraph below is just for descriptions
 :::
 
-- Add a Privileged Capability
-Modify the container spec to include elevated privileges:
+### Run as a Privileged container
+Modify your container YAMLs to include [elevated privileges](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/):
 ```
 securityContext:
   privileged: true
 
 ```
 This simulates a misconfigured container that could access host resources—something Kata Containers would block.
-- Mount Host Paths
-Mont a sensitive host directory:
+* Please note that Kata does not support privileged containers in preview, as host devices can't be mounted to kata pods. In order to do so, ensure you configure your containerd according to the instructions on [this page](https://github.com/kata-containers/kata-containers/blob/main/docs/how-to/privileged.md).
+
+### Mount Host Paths
+[Mount a sensitive host directory](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/) that could access host resources:
 ```
 volumeMounts:
 - name: host-root
@@ -213,15 +227,22 @@ volumes:
 
 ```
 This allows the container to read host files—again, blocked in sandboxed pods.
-- Expose Docker Socket
+
+### Expose Docker Socket
 Mount the Docker socket to simulate container escape:
 ```
-- mountPath: /var/run/docker.sock
-  name: docker-socket
+spec:
+  containers:
+   - name: dockercontainer
+     ...
+     volumeMounts:
+       - name: docker
+         mountPath: /var/run/docker.sock
 
 ```
-Then run a script inside the container to list or control other containers.
-- Inject a Reverse Shell
+This would typically allow someone to break out of the container, and access other resources on the host.
+
+### Inject a Reverse Shell
 Add a vulnerable endpoint in the backend API that executes shell commands:
 ```
 [HttpPost("exec")]
@@ -232,6 +253,7 @@ public IActionResult Exec([FromBody] string cmd)
 }
 ```
 This simulates remote code execution (RCE) from a compromised container.
+
 ## Demonstrating the impact of vulnerabilities
 
 Once the vulnerabilities are in place, we will now demonstrate how a bad actor might attempt to utilize these vulnerabilities on non-sandboxed pods.
@@ -429,8 +451,29 @@ kubectl exec -it <sandboxed-pod-name> -- /bin/bash
 ls -la /var/run/docker.sock  # File doesn't exist or is not functional
 docker ps  # Command will fail - no docker daemon access
 ```
+### Testing remote code execution
 
-### Testing network isolation
+```bash
+# Port forward to access the application
+kubectl port-forward <pod-name> 8080:3000
+
+# In another terminal, exploit the RCE vulnerability
+curl -X POST http://localhost:8080/exec \
+  -H "Content-Type: application/json" \
+  -d '"cat /etc/passwd"'
+
+# Try to access other pods' network
+curl -X POST http://localhost:8080/exec \
+  -H "Content-Type: application/json" \
+  -d '"nmap -sn 10.244.0.0/16"'
+
+# Attempt to access Kubernetes API
+curl -X POST http://localhost:8080/exec \
+  -H "Content-Type: application/json" \
+  -d '"curl -k https://kubernetes.default.svc.cluster.local/api/v1/namespaces"'
+```
+
+### Testing lateral movement
 
 ```bash
 # Network scanning from sandboxed pod shows limited scope
@@ -438,6 +481,9 @@ kubectl exec -it <sandboxed-pod-name> -- /bin/bash
 
 # Network discovery is limited to the VM's network view
 nmap -sn 10.244.0.0/16  # Limited or no results
+
+# Should not be able to access other pods' services
+curl http://<other-pod-ip>:8080
 
 # Cannot access node's kubelet API directly
 curl -k https://<node-ip>:10250/pods  # This will fail
@@ -465,16 +511,20 @@ You will notice here that:
 - Docker socket is inaccessible
 - RCE is contained within the UVM
 
-thus protecting the workload and contain vulnerabilities to individual pod level.
+The workload and contain vulnerabilities are largely isolated from one another at the individual pod level.
 
+## Kata Isolation
 
-### Compute isolations
+Each sandboxed pod runs inside its own lightweight virtual machine (UVM), which includes its own kernel, memory, and network stack. This means that even though multiple pods may share the same subnet, their network interfaces are isolated at the virtualization layer. 
 
-Each sandboxed pod runs inside its own lightweight virtual machine (UVM), which includes its own kernel, memory, and network stack. This means that even though multiple pods may share the same subnet, their network interfaces are isolated at the virtualization layer. This prevents direct access between pods unless explicitly configured.
+### Kernel
 
-This makes Pod Sandboxing on AKS ideal for multi-tenant scenarios, where you have untrusted workload from tenants running on the same node.
+Each Kata pod runs inside it's own lightweight VM, each with their own dedicated guest kernel. This ensures that:
 
-### Network isolations
+- Kernel exploits in one pod do not effect another pod nor the host.
+- Stronger isolation from other pods.
+
+### Networking
 
 Some of the key characteristics in Pod Sandboxing for networking are:
 
@@ -483,21 +533,13 @@ Some of the key characteristics in Pod Sandboxing for networking are:
 - Can have dedicated firewall rules, routing, and DNS settings.
 - Isolated from other pods while running on same subnet.
 
-Traffic between sandboxed pods on the same node is routed through virtual NICs and virtual switches inside the hypervisor layer. This provides strong isolation even though the subnet is shared.
-
-## Exploring compute/network isolation for Kata pods
-
-<!-- [Networing] Pinging from Kata to non-Kata pod (this should work by default -->
-<!-- [Networking] Setting up subnets for Kata pods different from non-Kata pods -->
-<!-- [Compute] Simulate a noisy neighbor on a Kata pod vs. non-Kata pod -->
+Traffic between sandboxed pods on the same node is routed through virtual NICs and virtual switches inside the hypervisor layer. This provides strong isolation even though the subnet is shared, unless explicitly configured otherwise.
 
 # Limitations
 
-<!-- Note on performance limitations -->
-<!-- Note on privileged pods, but capabailities should still work (showcase this). This should get fixed come GA. -->
-<!-- Note on peripheral devices -->
-<!-- Note on persistent storage limitations-->
-
+- Kata is currently set up utilizing a [nested virtualization](https://techcommunity.microsoft.com/blog/azure-ai-services-blog/nested-virtualization-on-azure--a-step-by-step-guide/4368074) setup, which introduces additional overhead for pod performance (e.g. network throughput, storage I/O) and startups. Users should generally expect a performance hit when compared with normal workloads.
+- With the way nested virtualization is setup, peripheral devices can not be mounted to the Kata pod. That includes devices GPUs and host devices.
+- Kata host-network isn't supported.
 
 # Summary
 
@@ -514,6 +556,11 @@ In this lab, we you:
 
 ## Next steps
 
+This lab introduced **Pod Sandboxing** for compute isolation on AKS, but there are more concepts you can explore:
+
+- Other [isolation best practices](https://learn.microsoft.com/en-us/azure/aks/operator-best-practices-cluster-isolation) on AKS
+- Running a thoroughly [multi-tenant setup on AKS](https://learn.microsoft.com/en-us/azure/architecture/guide/multitenant/service/aks)
+ 
 # Cleanup (Optional)
 
 If you are done and no longer need the cluster(s) created during this lab, you can delete your cluster with the following command:
@@ -533,9 +580,5 @@ then delete the pod(s) in question
 ```bash
 kubectl delete pod <pod_name>
 ```
-
-### Commonly asked questions
-
-### Takeaways
 
 
