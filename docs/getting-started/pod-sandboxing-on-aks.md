@@ -6,7 +6,7 @@ sidebar_label: "Pod Sandboxing"
 
 To help secure and protect your container workloads from untrusted or potentially malicious code, AKS now includes a mechanism called Pod Sandboxing (preview). Pod Sandboxing provides an isolation boundary between the container application and the shared kernel and compute resources of the container host such as CPU, memory, and networking. Pod Sandboxing complements other security measures or data protection controls with your overall architecture to help you meet regulatory, industry, or governance compliance requirements for securing sensitive information.
 
-Traditionally, Kubernetes deployments rely on namespace isolations Namespaces don't protect against kernel-level attacks, because:
+Traditionally, Kubernetes deployments rely on namespace isolation. Namespaces don't protect against kernel-level attacks, because:
 
 - All containers share the same kernel.
 - vulnerability in the kernel (e.g., dirty COW, runc escape, Spectre/Meltdown side channels) can allow cross-container attacks.
@@ -64,9 +64,9 @@ In order to demonstrate the difference between Kata and non Kata pods, we will d
 
 ### Kernel
 
-Each Kata pod runs inside it's own lightweight VM, each with their own dedicated guest kernel. This ensures that:
+Each Kata pod runs inside its own lightweight VM, each with their own dedicated guest kernel. This ensures that:
 
-- Kernel exploits in one pod do not effect another pod nor the host.
+- Kernel exploits in one pod do not affect another pod nor the host.
 - Stronger isolation from other pods.
 
 ### Networking
