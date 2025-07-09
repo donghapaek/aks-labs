@@ -6,7 +6,7 @@ sidebar_label: "Pod Sandboxing"
 
 Pod Sandboxing on AKS, currently in Public Preview, provides an isolation boundary between the container application and the shared kernel and compute resources of the container host such as CPU, memory, and networking. 
 
-Traditionally, Kubernetes deployments rely on namespace isolations Namespaces don't protect against kernel-level attacks, because:
+Traditionally, Kubernetes deployments rely on namespace isolation. Namespaces don't protect against kernel-level attacks, because:
 
 - All containers share the same kernel.
 - vulnerability in the kernel (e.g., dirty COW, runc escape, Spectre/Meltdown side channels) can allow cross-container attacks.
@@ -40,11 +40,11 @@ As you progress through the workshop, you will learn how to:
 
 Before starting this lab, please ensure your lab environment is set up properly. Follow the guide [here](https://azure-samples.github.io/aks-labs/docs/getting-started/setting-up-lab-environment/).
 
-Please also familiarize yourself with the basic concepts laid out, and ensure you have the prerequisities laid out in the Microsoft Learn page for [Pod Sandboxing on AKS](https://learn.microsoft.com/en-us/azure/aks/use-pod-sandboxing).
+Please also familiarize yourself with the basic concepts laid out, and ensure you have the prerequisites laid out in the Microsoft Learn page for [Pod Sandboxing on AKS](https://learn.microsoft.com/en-us/azure/aks/use-pod-sandboxing).
 
 ## Setting up Pod Sandboxing on your AKS Node Pool(s)
 
-You have can either spin up a new cluster or add nodepools to an existing cluster to experiment with the Pod Sandboxing feature.
+You can either spin up a new cluster or add node pools to an existing cluster to experiment with the Pod Sandboxing feature.
 
 ## Deploy a new cluster
 
@@ -67,7 +67,7 @@ az aks create
     --generate-ssh-keys
 ```
 
-Once the cluster is created, ensure you get the access credentials for the Kubernetes cluser.
+Once the cluster is created, ensure you get the access credentials for the Kubernetes cluster.
 
 ```azurecli-interactive
 az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
@@ -75,17 +75,17 @@ az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
 
 ## Deploy to an existing cluster
 
-The prerequisites above hold true if you intend to deploy Pod Sandboxing to an existing cluster. The difference is instead of creating a cluster via `az aks create`, you will simply add node pools to an existing cluster using `az aks nodepool add`. The parameter requirements laid out above remain the same.
+The prerequisites above also apply if you intend to deploy Pod Sandboxing to an existing cluster. The difference is instead of creating a cluster via `az aks create`, you will simply add node pools to an existing cluster using `az aks node pool add`. The parameter requirements laid out above remain the same.
 
-In order to demonstrate the difference between Kata and non Kata pods, we will deploy multiple pods, both with Pod Sandboxing enabled and disabled.
+In order to demonstrate the difference between Kata and non-Kata pods, we will deploy multiple pods, both with Pod Sandboxing enabled and disabled.
 
-This example adds a node pool to *myAKSCluster* with one node pool, *newnodepool* in *myResourceGroup*:
+This example adds a node pool to *myAKSCluster* with one node pool, *newnode pool* in *myResourceGroup*:
 
 ```azurecli
-az aks nodepool add \
+az aks node pool add \
     --cluster-name myAKSCluster \
     --resource-group myResourceGroup \
-    --name nodepool2 \ 
+    --name node pool2 \ 
     --os-sku AzureLinux \ 
     --workload-runtime KataMshvVmIsolation \
     --node-vm-size Standard_D4s_v3
@@ -96,7 +96,7 @@ az aks nodepool add \
 
 ## Deploying your pods
 
-In order to demonstrate the usefullness of resource isolation, we will deploy applications to the same nodepool, only enabling Pod Sandboxing on subset of applications.
+In order to demonstrate the usefulness of resource isolation, we will deploy applications to the same node pool, only enabling Pod Sandboxing on a subset of applications.
 
 For the purposes of the demo, we will deploy a sample Contoso projects on AKS: [Contoso Ship Manager](https://github.com/Azure-Samples/aks-contoso-ships-sample).
 
@@ -201,7 +201,7 @@ kubectl describe pod <sandboxed-pod-name> | grep "Runtime Class"
 We will introduce some common vulnerabilities to our application and see how they compare between a normal pod and one that is sandboxed:
 
 :::info
-We will provide the patch that you can apply to the deployment. Paragraph below is just for descriptions
+We will provide the patch that you can apply to the deployment. The sections below are intended as a description of the different vulnerabilities.
 :::
 
 ### Run as a Privileged container
@@ -511,7 +511,7 @@ You will notice here that:
 - Docker socket is inaccessible
 - RCE is contained within the UVM
 
-The workload and contain vulnerabilities are largely isolated from one another at the individual pod level.
+The workload and container vulnerabilities are largely isolated from one another at the individual pod level.
 
 ## Kata Isolation
 
@@ -519,9 +519,9 @@ Each sandboxed pod runs inside its own lightweight virtual machine (UVM), which 
 
 ### Kernel
 
-Each Kata pod runs inside it's own lightweight VM, each with their own dedicated guest kernel. This ensures that:
+Each Kata pod runs inside its own lightweight VM, each with their own dedicated guest kernel. This ensures that:
 
-- Kernel exploits in one pod do not effect another pod nor the host.
+- Kernel exploits in one pod do not affect another pod nor the host.
 - Stronger isolation from other pods.
 
 ### Networking
@@ -538,7 +538,7 @@ Traffic between sandboxed pods on the same node is routed through virtual NICs a
 # Limitations
 
 - Kata is currently set up utilizing a [nested virtualization](https://techcommunity.microsoft.com/blog/azure-ai-services-blog/nested-virtualization-on-azure--a-step-by-step-guide/4368074) setup, which introduces additional overhead for pod performance (e.g. network throughput, storage I/O) and startups. Users should generally expect a performance hit when compared with normal workloads.
-- With the way nested virtualization is setup, peripheral devices can not be mounted to the Kata pod. That includes devices GPUs and host devices.
+- With the way nested virtualization is setup, peripheral devices, such as GPUs and other host devices, cannot be mounted to the Kata pod.
 - Kata host-network isn't supported.
 
 # Summary
@@ -547,11 +547,11 @@ Traffic between sandboxed pods on the same node is routed through virtual NICs a
 
 ## What we learned
 
-In this lab, we you:
+In this lab, you:
 - ✅ Set up Pod Sandboxing on AKS.
 - ✅ Deployed both sandboxed and non-sandboxed pods on a cluster.
 - ✅ Explored isolation provided by Pod Sandboxing.
-- ✅ Simulated workload stress scenarios, and seeing how Pod Sandboxing can help isolate other workloads from the fallout.
+- ✅ Simulated workload stress scenarios, and saw how Pod Sandboxing can help isolate other workloads from the fallout.
 - ✅ Explored limitations of Pod Sandboxing.
 
 ## Next steps
