@@ -75,17 +75,17 @@ az aks get-credentials --resource-group myResourceGroup --name myAKSCluster
 
 ## Deploy to an existing cluster
 
-The prerequisites above also apply if you intend to deploy Pod Sandboxing to an existing cluster. The difference is instead of creating a cluster via `az aks create`, you will simply add node pools to an existing cluster using `az aks node pool add`. The parameter requirements laid out above remain the same.
+The prerequisites above also apply if you intend to deploy Pod Sandboxing to an existing cluster. The difference is instead of creating a cluster via `az aks create`, you will simply add node pools to an existing cluster using `az aks nodepool add`. The parameter requirements laid out above remain the same.
 
 In order to demonstrate the difference between Kata and non-Kata pods, we will deploy multiple pods, both with Pod Sandboxing enabled and disabled.
 
-This example adds a node pool to *myAKSCluster* with one node pool, *newnode pool* in *myResourceGroup*:
+This example adds a node pool to *myAKSCluster* with one node pool, *nodepool2* in *myResourceGroup*:
 
 ```azurecli
-az aks node pool add \
+az aks nodepool add \
     --cluster-name myAKSCluster \
     --resource-group myResourceGroup \
-    --name node pool2 \ 
+    --name nodepool2 \ 
     --os-sku AzureLinux \ 
     --workload-runtime KataMshvVmIsolation \
     --node-vm-size Standard_D4s_v3
