@@ -110,7 +110,7 @@ cd contoso-ships
 -->
 ```azurecli
 kubectl create deployment contoso-air \
---image=mcr.microsoft.com/mslearn/samples/contoso-ship-manager \
+--image=mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine \
 --port=3000 \
 --dry-run=client \
 --output yaml > manifests/contoso-air-deployment.yaml
@@ -127,7 +127,7 @@ To deploy the same Contoso Ship Manager application with Pod Sandboxing enabled,
 
 ```azurecli
 kubectl create deployment contoso-air-sandboxed \
---image=mcr.microsoft.com/mslearn/samples/contoso-ship-manager \
+--image=mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine \
 --port=3000 \
 --dry-run=client \
 --output yaml > manifests/contoso-air-sandboxed-deployment.yaml
@@ -155,7 +155,7 @@ spec:
       runtimeClassName: kata-mshv-vm-isolation  # This enables Pod Sandboxing
       containers:
       - name: contoso-ship-manager
-        image: mcr.microsoft.com/mslearn/samples/contoso-ship-manager
+        image: mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine
         ports:
         - containerPort: 3000
         resources:
@@ -385,7 +385,7 @@ spec:
       runtimeClassName: kata-mshv-vm-isolation
       containers:
       - name: contoso-air
-        image: mcr.microsoft.com/mslearn/samples/contoso-ship-manager
+        image: mcr.microsoft.com/oss/nginx/nginx:1.15.5-alpine
         ports:
         - containerPort: 3000
         securityContext:
