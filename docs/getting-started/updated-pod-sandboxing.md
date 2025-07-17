@@ -57,7 +57,7 @@ When deploying a new AKS cluster with Pod Sandboxing enabled, you can simply cal
 - `--os-sku`: Ensure you select `AzureLinux`, as that is the only OS that supports this feature currently.
 - `--node-vm-size`: Please ensure you select a VM size that both supports generation 2 VMs and nested virtualization. The [Dsv3 series](https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/dsv3-series?tabs=sizebasic) of VMs are a great example.
 
-Here is an example of a command that will create a cluster, *myAKSCluster*, with 3 nodes in *myResourceGroup*:
+Here is an example of a command that will create a cluster, *myAKSCluster*, with 1 node in *myResourceGroup*:
 
 ```azurecli-interactive
 az aks create
@@ -66,7 +66,7 @@ az aks create
     --os-sku AzureLinux \
     --workload-runtime KataMshvVmIsolation \
     --node-vm-size Standard_D4s_v3 \
-    --node-count 3 \
+    --node-count 1 \
     --generate-ssh-keys
 ```
 
