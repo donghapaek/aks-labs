@@ -136,5 +136,40 @@ You should now see that you have access to host system resources by running `cri
 
 ### Kata Demonstration
 
+Now we want to see if running the pod as a Kata pod brings about any differences. 
 
+Let's first delete our previous deployment. The simpliest way would be via `kubectl delete -f scenarios/system-monitor/`
 
+Let's head over to the deployment YAML, which should be located at `...\kubernetes-goat\scenarios\system-monitor`. 
+
+In the runtime spec, all you will need to do is add in one line:
+
+```YAML
+spec:
+  selector:
+    matchLabels:
+      app: system-monitor
+  template:
+    metadata:
+      labels:
+        app: system-monitor
+    spec:
+      runtimeClassName: kata-mshv-vm-isolation # one line change to make this pod a Kata sandbox.
+      hostPID: true
+      hostIPC: true
+      #hostNetwork: true
+```
+
+Let's deploy the updated pod, and run the same tests as before:
+- We'll first exec into our pod (`kubectl exec -it <pod-name> -- bash`)
+- Run `capsh --print`. This time around, we should notice much less capabilities show up.
+- Run `mount`. Like `capsh`, we should see considerable less mounted resources than before.
+- Let's attempt to get direct access to host system privileges again, and see what host resources we have access to.
+   - We'll first run `chroot /host-system bash`.
+   - Next, we'll run `crictl pods`. This time around, we should be greeted with an error stating that the file/directory does not exist. From the Kata pod, we won't have access to host resources.
+ 
+With Kata pods, we can see that we generally have less (or in some cases, no) access to resources that we previously had in a non-Kata pod!
+
+To clean up this first demonstration, run `kubectl delete -f scenarios/system-monitor/` again.
+
+## Scenario #2 
