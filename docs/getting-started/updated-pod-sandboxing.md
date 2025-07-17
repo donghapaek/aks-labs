@@ -155,9 +155,6 @@ spec:
         app: system-monitor
     spec:
       runtimeClassName: kata-mshv-vm-isolation # one line change to make this pod a Kata sandbox.
-      hostPID: true
-      hostIPC: true
-      #hostNetwork: true
 ```
 
 Let's deploy the updated pod, and run the same tests as before:
