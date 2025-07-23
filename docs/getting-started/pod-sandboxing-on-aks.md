@@ -9,7 +9,7 @@ To help secure and protect your container workloads from untrusted or potentiall
 Traditionally, Kubernetes deployments rely on namespace isolation. Namespaces don't protect against kernel-level attacks, because:
 
 - All containers share the same kernel.
-- vulnerability in the kernel (e.g., dirty COW, runc escape, Spectre/Meltdown side channels) can allow cross-container attacks.
+- Vulnerability in the kernel (e.g., dirty COW, runc escape, Spectre/Meltdown side channels) can allow cross-container attacks.
 - If a container escapes its namespace, it could compromise other containers or the host.
 
 This is especially risky in multi-tenant clusters, where:
