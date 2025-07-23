@@ -1,5 +1,5 @@
 ---
-sidebar_position: 
+sidebar_position: 1
 title: Pod Sandboxing on AKS
 sidebar_label: "Pod Sandboxing"
 ---
