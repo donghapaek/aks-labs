@@ -131,7 +131,10 @@ A quick method to do so will be via launching a debug pod. Run the following com
 NODE_NAME=$(kubectl get nodes -ojsonpath='{.items[0].metadata.name}')
 kubectl debug node/$NODE_NAME -it --image=ubuntu:22.04 -- bash
 
-Once in your node, you can use an editor of your choice. If you don't have it, you can also quickly install `vim` via `apt update && apt install vim -y`
+Once in your node, you will need to modify files. We will use `vim` for this. Install `vim` using the following command.
+
+```bash
+apt update && apt install vim -y
 
 Then edit your containerd config:
 
