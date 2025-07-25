@@ -169,11 +169,20 @@ Running `mount` will display the mounted filesystems and their mount points. Tak
 
 - You can further explore the mounted filesystem by navigating to the `/host-system/` path via `ls /host-system/`
 
-Using `chroot`, we can get direct access to host system privileges: `chroot /host-system bash`
+Using `chroot`, we can get direct access to host system privileges: 
 
-You should now see that you have access to host system resources by running `crictl pods`.
+```bash
+chroot /host-system bash
 
-Once we are done here, let's move on to Kata pods. First, let's clean up this deployment. The simplest way would be via `kubectl delete -f scenarios/system-monitor/`.
+You should now see that you have access to host system resources by running 
+
+```bash
+crictl pods
+
+Once we are done here, let's move on to Kata pods. First, let's clean up this deployment. Exit the pods interactive terminal then run the following command:
+
+```bash
+kubectl delete -f scenarios/system-monitor
 
 ### Kata Demonstration
 
@@ -183,9 +192,9 @@ Let's head over to the deployment YAML, which should be located at `../kubernete
 
 Open up the YAML in an editor of your choice.
 
-In the runtime spec, all you will need to do is add in one line:
+In the deployment template spec (after line 24), add a `runtimeClassName` with a value of `kata-mshv-vm-isolation` as illustrated in the YAML snippet below:
 
-```YAML
+```yaml
 spec:
   selector:
     matchLabels:
@@ -209,7 +218,10 @@ Let's deploy the updated pod, and run the same tests as before:
 
 With Kata pods, we can see that we generally have less (or in some cases, no) access to resources that we previously had in a non-Kata pod!
 
-To clean up this first demonstration, run `kubectl delete -f scenarios/system-monitor/` again.
+To clean up this demonstration, exit the interactive terminal session, then run the following command:
+
+```bash
+kubectl delete -f scenarios/system-monitor
 
 ## Exploring pod sandboxing under the hood
 
@@ -219,25 +231,23 @@ Let's take a look under the hood to see how Kata pods are set up.
 
 For this section, let's deploy some sample pods. You can find sample folder for this section under the `docs/security/assets/pod-sandboxing-on-aks` in [AKS labs Github](https://github.com/Azure-Samples/aks-labs/tree/main/docs/security/assets/pod-sandboxing-on-aks/). Please download the folder and place it in the directory you are running the lab on.
 
-```
+```bash
 kubectl apply -f ./kata_demo/
-```
 
 1. To list your nodes, use the kubectl get nodes command:
 
-```
+```bash
 kubectl get nodes -o wide
 ```
 
 2. Use the kubectl debug command to start a privileged container on your node and connect to it.
 
-```
+```bash
 kubectl debug node/<node-name> -it --image=mcr.microsoft.com/cbl-mariner/busybox:2.0
-```
 
 In the debug pod, lets now navigate to host kernel and take a look at the Kata VMs:
 
-```
+```bash
 chroot /host
 ps aux | grep cloud-hypervisor
 ps aux | grep containerd-shim-kata
@@ -247,19 +257,19 @@ Very interesting! We can see we have a [cloud hypervisor](https://techcommunity.
 
 Lets take a close look at the pods.
 
-```
+```bash
 sudo crictl pods
 ```
 
 We can see all our pods that are on the node. We are mainly interested in the Kata pods. Grab the pod ID for your `kata-1` pod, and run the command:
 
-```
+```bash
 sudo crictl ps -a --pod <kata-pod-id>
 ```
 
 This will provide you with the Kata container id. Lets inspect it further. Grab the container-id from the previous output, and run the command:
 
-```
+```bash
 sudo crictl inspect <container-id> | grep -i runtime
 ```
 
@@ -275,14 +285,14 @@ To demonstrate this, we will use the same pods deployed from the previous sectio
 
 We will crash the sandboxed pod using the SysRq trigger, which simulates a kernel panic inside the sandbox:
 
-```
+```bash
 kubectl exec -it kata-1 -- /bin/sh
 echo c > /proc/sysrq-trigger
 ```
 
 Let's check if other pods are impacted from the kernel panic:
 
-```
+```bash
 kubectl get pods
 ```
 
@@ -292,7 +302,7 @@ We can see that other pods are alive and well.
 
 We now repeat the same experiment on a normal pod:
 
-```
+```bash
 kubectl exec -it normal-1 -- /bin/sh
 echo c > /proc/sysrq-trigger
 ```
