@@ -136,12 +136,29 @@ Once in your node, you will need to modify files. We will use `vim` for this. In
 ```bash
 apt update && apt install vim -y
 
-Then edit your containerd config:
+Once vim is installed, edit the containerd config by running the following command:
+```bash
+vim /host/etc/containerd/config.toml
 
-- First, run `vim /host/etc/containerd/config.toml`.
-- Look for the section under `[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata]`, hit "O" for a new line, and insert `privileged_without_host_devices = true`
-- Press "esc", then enter `:wq` to save your changes.
-- Restart containerd ` chroot /host systemctl restart containerd`
+Look for the section under `[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata]` (on line 22)
+
+Move your cursor to the end of the line and press the letter O on your keyboard to add a new line.
+
+Make sure you indent two spaces, then add the following configuration:
+
+```
+privileged_without_host_devices = true
+```
+
+Press the `esc` key on your keyboard, then type `:wq` and press enter to save your changes and exit the file.
+
+Restart containerd with the following command:
+
+```
+chroot /host systemctl restart containerd
+```
+
+At this point, the debug session should be terminated, and you should be back in your shell.
 
 ## Scenarios
 
@@ -152,20 +169,35 @@ The [Container Escape to the Host System](https://madhuakula.com/kubernetes-goat
 ### Non-Kata Demonstration
 
 We will only deploy the specific pod we need for this scenario. In this case, we will first deploy the pods corresponding to the container escape scenario:
-`kubectl apply -f scenarios/system-monitor/`
+```bash
+kubectl apply -f scenarios/system-monitor
+```
 
-Make sure that the pod is up and running. You can do so via `kubectl get pods`.
+Make sure that the pod is up and running. You can do so using the following command:
+```bash
+kubectl get pods
+```
 
-Once the pod is up and running, we can exec directly into the pod to run some tests.
+Next, we can exec directly into the pod to run some tests.
 
-- Grab your pod name: `kubectl get pods`
-- Exec into your pod: `kubectl exec -it <pod-name> -- bash`
+```
+POD_NAME=$(kubectl get pods -lapp=system-monitor -ojsonpath='{.items[0].metadata.name}')
+```
+Then exec into your pod:
 
-To see the current capabilities of our pod, run `capsh --print`.
+```
+kubectl exec -it $POD_NAME -- bash
+```
 
-At a glance, you should be able to see many capabilities that you would associate with a privileged pod, such as `CAP_SYS_ADMIN`.
+To see the current capabilities of our pod, run the following command:
+```
+capsh --print
+```
 
-Running `mount` will display the mounted filesystems and their mount points. Take a second to look through the mounted host points. We should see some points that would bring up concerns; a line similar to `http://dev/sda3%20on%20etc/hostname%20type%20ext4%20(rw,relatime)`, for instance, would hint that the host's root filesystem (`/dev/sda`) is mounted at `/host` inside the container, a potential major security vulnerability.
+
+At a glance, you should be able to see many capabilities that you would associate with a privileged pod, such as `cap_sys_admin`.
+
+Also, running `mount` will display the mounted filesystems and their mount points. Take a second to look through the mounted host points. We should see some points that would bring up concerns; a line similar to `http://dev/sda3%20on%20etc/hostname%20type%20ext4%20(rw,relatime)`, for instance, would hint that the host's root filesystem (`/dev/sda`) is mounted at `/host` inside the container, a potential major security vulnerability.
 
 - You can further explore the mounted filesystem by navigating to the `/host-system/` path via `ls /host-system/`
 
@@ -179,7 +211,7 @@ Once we are done here, let's move on to Kata pods. First, let's clean up this de
 
 Now we want to see if running the pod as a Kata pod brings about any differences.
 
-Let's head over to the deployment YAML, which should be located at `../kubernetes-goat/scenarios/system-monitor`.
+Let's head over to the deployment YAML, which should be located at `scenarios/system-monitor/deployment.yaml`.
 
 Open up the YAML in an editor of your choice.
 
@@ -197,15 +229,46 @@ spec:
     spec:
       runtimeClassName: kata-mshv-vm-isolation # one line change to make this pod a Kata sandbox.
 ```
+Let's deploy the updated manifest, and run the same tests as before:
+Deploy the manifest.
 
-Let's deploy the updated pod, and run the same tests as before:
+```bash
+kubectl apply -f scenarios/system-monitor
+```
 
-- We'll first exec into our pod (`kubectl exec -it <pod-name> -- bash`)
-- Run `capsh --print`. This time around, we should notice much less capabilities show up.
-- Run `mount`. Like `capsh`, we should see considerable less mounted resources than before.
-- Let's attempt to get direct access to host system privileges again, and see what host resources we have access to.
-  - We'll first run `chroot /host-system bash`.
-  - Next, we'll run `crictl pods`. This time around, we should be greeted with an error stating that the file/directory does not exist. From the Kata pod, we won't have access to host resources.
+After you've confirmed the pod is running, exec into it:
+
+```bash
+POD_NAME=$(kubectl get pods -lapp=system-monitor -ojsonpath='{.items[0].metadata.name}')
+kubectl exec -it $POD_NAME -- bash
+```
+
+Run the `capsh` command again and this time around, we should notice much less capabilities show up.
+```
+capsh --print
+```
+
+Run the `mount` command and again, we should see considerably less mounted resources than before.
+```
+mount
+```
+
+Let's attempt to get direct access to host system privileges again and see what host resources we have access to.
+
+We'll first run the `chroot` command again.
+
+```
+chroot /host-system bash
+```
+
+Next, run `crictl` again to view all pods running.
+
+```
+crictl pods
+```
+This time around, we should be greeted with an error stating that the file/directory does not exist. From the Kata pod, we won't have access to host resources.
+
+
 
 With Kata pods, we can see that we generally have less (or in some cases, no) access to resources that we previously had in a non-Kata pod!
 
