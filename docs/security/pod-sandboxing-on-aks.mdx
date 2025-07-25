@@ -1,5 +1,5 @@
 ---
-sidebar_position: 1
+sidebar_position: 4
 title: Pod Sandboxing on AKS
 sidebar_label: "Pod Sandboxing"
 ---
@@ -95,13 +95,18 @@ az aks get-credentials \
 
 ### Setup Kubernetes GOAT
 
+Kubernetes Goat is an intentionally vulnerable Kubernetes cluster designed for learning and practicing Kubernetes security. We will be borrowing sample container images to demonstrate isolation benefits from using pod sandboxing.
+
 Once your cluster is up and running, navigate to a location that you would like the Kubernetes Goat files to sit at.
 
 ```bash
 cd <location_path_of_your_choice>
 
 Once there, clone the repo:
-`git clone https://github.com/madhuakula/kubernetes-goat.git`
+
+```bash
+git clone https://github.com/madhuakula/kubernetes-goat.git`
+```
 
 Then navigate into the folder it is installed at:
 
@@ -206,7 +211,7 @@ As mentioned earlier, Pod Sandboxing runs each pods as a virtual machine on top 
 
 Let's take a look under the hood to see how Kata pods are set up.
 
-For this section, let's deploy some sample pods. You can find sample folder for this section under the `docs/getting-started/assets/pod-sandboxing-on-aks` in [AKS labs Github](https://github.com/Azure-Samples/aks-labs/tree/main/docs/security/assets/pod-sandboxing-on-aks/). Please download the folder and place it in the directory you are running the lab on.
+For this section, let's deploy some sample pods. You can find sample folder for this section under the `docs/security/assets/pod-sandboxing-on-aks` in [AKS labs Github](https://github.com/Azure-Samples/aks-labs/tree/main/docs/security/assets/pod-sandboxing-on-aks/). Please download the folder and place it in the directory you are running the lab on.
 
 ```
 kubectl apply -f ./kata_demo/
@@ -232,7 +237,7 @@ ps aux | grep cloud-hypervisor
 ps aux | grep containerd-shim-kata
 ```
 
-Very interesting! We can see we have a cloud hypervisor running per Kata container within the host. In Pod Sandboxing, Cloud Hypervisor is the default hypervisor for Kata workloads. This differs from upstream Kata Containers, which uses QEMU as a default.
+Very interesting! We can see we have a [cloud hypervisor](https://techcommunity.microsoft.com/blog/appsonazureblog/preview-support-for-kata-vm-isolated-containers-on-aks-for-pod-sandboxing/3751557) running per Kata container within the host. In Pod Sandboxing, Cloud Hypervisor is the default hypervisor for Kata workloads. This differs from upstream Kata Containers, which uses QEMU as a default.
 
 Lets take a close look at the pods.
 
@@ -240,7 +245,7 @@ Lets take a close look at the pods.
 sudo crictl pods
 ```
 
-We can see all our pods that are on the node. We are mainly interested in the Kata pods. Grab the pod ID for your kata pod, and run the command:
+We can see all our pods that are on the node. We are mainly interested in the Kata pods. Grab the pod ID for your `kata-1` pod, and run the command:
 
 ```
 sudo crictl ps -a --pod <kata-pod-id>
@@ -252,7 +257,7 @@ This will provide you with the Kata container id. Lets inspect it further. Grab 
 sudo crictl inspect <container-id> | grep -i runtime
 ```
 
-We can see that the runtime is kata based, unlike what you would expect from the normal pod deployments.
+We can see that the runtime is Kata based, unlike what you would expect from the normal pod deployments.
 
 ## Protecting pods from one another
 
@@ -319,4 +324,6 @@ This lab introduced **Pod Sandboxing** for compute isolation on AKS, but there a
 ## Cleanup (Optional)
 
 If you are finished with your AKS resources and no longer need them, you can simply delete the resource group to get rid of all components within.
-`az group delete --resource-group ${RG_NAME}`
+```bash
+az group delete --resource-group ${RG_NAME}
+```
