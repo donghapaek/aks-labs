@@ -125,8 +125,11 @@ Kubernetes GOAT offers a [number of scenarios](https://madhuakula.com/kubernetes
 
 At points in this lab, we will be running some privileged Kata pods. This requires you to [configure your containerd Kata runtime appropriately](https://github.com/kata-containers/kata-containers/blob/main/docs/how-to/privileged.md).
 
-A quick method to do so will be via launching a debug pod. First, use `kubectl get nodes` to get the name of your node, and plug it into the command below:
-`kubectl debug node/<node_name> -it --image=ubuntu:22.04 -- bash`
+A quick method to do so will be via launching a debug pod. Run the following commands to get the name of the node then start interactively debugging it:
+
+```bash
+NODE_NAME=$(kubectl get nodes -ojsonpath='{.items[0].metadata.name}')
+kubectl debug node/$NODE_NAME -it --image=ubuntu:22.04 -- bash
 
 Once in your node, you can use an editor of your choice. If you don't have it, you can also quickly install `vim` via `apt update && apt install vim -y`
 
