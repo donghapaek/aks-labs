@@ -101,6 +101,8 @@ Once your cluster is up and running, navigate to a location that you would like 
 
 ```bash
 cd <location_path_of_your_choice>
+```
+
 Once there, clone the repo:
 
 ```bash
@@ -111,6 +113,8 @@ Then navigate into the folder it is installed at:
 
 ```bash
 cd kubernetes-goat
+```
+
 :::info
 
 Use this as your working directory for the remainder of the workshop.
@@ -128,14 +132,19 @@ A quick method to do so will be via launching a debug pod. Run the following com
 ```bash
 NODE_NAME=$(kubectl get nodes -ojsonpath='{.items[0].metadata.name}')
 kubectl debug node/$NODE_NAME -it --image=ubuntu:22.04 -- bash
+```
+
 Once in your node, you will need to modify files. We will use `vim` for this. Install `vim` using the following command.
 
 ```bash
 apt update && apt install vim -y
+```
+
 Once vim is installed, edit the containerd config by running the following command:
 
 ```bash
 vim /host/etc/containerd/config.toml
+```
 
 Look for the section under `[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata]` (on line 22)
 
@@ -181,6 +190,8 @@ Next, we can exec directly into the pod to run some tests.
 
 ```bash
 POD_NAME=$(kubectl get pods -lapp=system-monitor -ojsonpath='{.items[0].metadata.name}')
+```
+
 Then exec into your pod:
 
 ```bash
@@ -193,25 +204,30 @@ To see the current capabilities of our pod, run the following command:
 capsh --print
 ```
 
-
 At a glance, you should be able to see many capabilities that you would associate with a privileged pod, such as `cap_sys_admin`.
 
 Also, running `mount` will display the mounted filesystems and their mount points. Take a second to look through the mounted host points. We should see some points that would bring up concerns; a line similar to `http://dev/sda3%20on%20etc/hostname%20type%20ext4%20(rw,relatime)`, for instance, would hint that the host's root filesystem (`/dev/sda`) is mounted at `/host` inside the container, a potential major security vulnerability.
 
 - You can further explore the mounted filesystem by navigating to the `/host-system/` path via `ls /host-system/`
 
-Using `chroot`, we can get direct access to host system privileges: 
+Using `chroot`, we can get direct access to host system privileges:
 
 ```bash
 chroot /host-system bash
-You should now see that you have access to host system resources by running 
+```
+
+You should now see that you have access to host system resources by running
 
 ```bash
 crictl pods
+```
+
 Once we are done here, let's move on to Kata pods. First, let's clean up this deployment. Exit the pods interactive terminal then run the following command:
 
 ```bash
 kubectl delete -f scenarios/system-monitor
+```
+
 ### Kata Demonstration
 
 Now we want to see if running the pod as a Kata pod brings about any differences.
@@ -233,7 +249,10 @@ spec:
         app: system-monitor
     spec:
       runtimeClassName: kata-mshv-vm-isolation # one line change to make this pod a Kata sandbox.
+```
+
 Let's deploy the updated manifest, and run the same tests as before:
+
 Deploy the manifest.
 
 ```bash
@@ -272,9 +291,8 @@ Next, run `crictl` again to view all pods running.
 ```bash
 crictl pods
 ```
+
 This time around, we should be greeted with an error stating that the file/directory does not exist. From the Kata pod, we won't have access to host resources.
-
-
 
 With Kata pods, we can see that we generally have less (or in some cases, no) access to resources that we previously had in a non-Kata pod!
 
@@ -282,6 +300,8 @@ To clean up this demonstration, exit the interactive terminal session, then run 
 
 ```bash
 kubectl delete -f scenarios/system-monitor
+```
+
 ## Exploring pod sandboxing under the hood
 
 As mentioned earlier, Pod Sandboxing runs each pods as a virtual machine on top of your node OS.
@@ -292,6 +312,8 @@ For this section, let's deploy some sample pods. You can find sample folder for 
 
 ```bash
 kubectl apply -f ./kata_demo/
+```
+
 1. To list your nodes, use the kubectl get nodes command:
 
 ```bash
@@ -302,6 +324,8 @@ kubectl get nodes -o wide
 
 ```bash
 kubectl debug node/<node-name> -it --image=mcr.microsoft.com/cbl-mariner/busybox:2.0
+```
+
 In the debug pod, lets now navigate to host kernel and take a look at the Kata VMs:
 
 ```bash
