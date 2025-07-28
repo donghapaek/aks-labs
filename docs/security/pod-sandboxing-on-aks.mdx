@@ -179,7 +179,7 @@ kubectl get pods
 
 Next, we can exec directly into the pod to run some tests.
 
-```
+```bash
 POD_NAME=$(kubectl get pods -lapp=system-monitor -ojsonpath='{.items[0].metadata.name}')
 ```
 Then exec into your pod:
