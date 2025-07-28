@@ -269,7 +269,7 @@ chroot /host-system bash
 
 Next, run `crictl` again to view all pods running.
 
-```
+```bash
 crictl pods
 ```
 This time around, we should be greeted with an error stating that the file/directory does not exist. From the Kata pod, we won't have access to host resources.
